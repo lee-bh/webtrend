@@ -3,40 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>푸바오가 커서를 따라다녀요</title>
+    <title>웹캠 ASCII 비디오</title>
     <style>
         body {
+            font-family: monospace;
+            background-color: #000;
+            color: #00ff00;
             margin: 0;
+            padding: 0;
             overflow: hidden;
-            background-color: #f0f0f0;
-            position: relative;
-            height: 100vh;
         }
 
-        #fuBao {
-            position: absolute;
-            width: 100px;
-            height: 100px;
-            background-image: url('https://upload.wikimedia.org/wikipedia/commons/0/0c/Panda_on_Grass.jpg'); /* 푸바오 이미지 */
-            background-size: cover;
-            pointer-events: none; /* 마우스 이벤트를 무시하여 다른 요소와 상호작용 가능하게 만듬 */
-            transition: transform 0.1s ease-out;
+        #ascii-video {
+            white-space: pre;
+            font-size: 10px;
+            line-height: 10px;
+            text-align: center;
         }
     </style>
 </head>
 <body>
-    <div id="fuBao"></div>
+    <pre id="ascii-video"></pre>
 
     <script>
-        const fuBao = document.getElementById('fuBao');
+        const asciiVideoElement = document.getElementById('ascii-video');
+        const width = 120; // 출력할 ASCII 영상의 너비
+        const height = 80; // 출력할 ASCII 영상의 높이
+        const asciiChars = "@%#*+=-:. "; // ASCII로 사용할 문자들
 
-        document.addEventListener('mousemove', function(event) {
-            const mouseX = event.clientX;
-            const mouseY = event.clientY;
+        // 비디오 스트림을 얻기 위한 함수
+        async function setupWebcam() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                const video = document.createElement('video');
+                video.srcObject = stream;
+                video.width = width;
+                video.height = height;
+                video.play();
 
-            fuBao.style.left = (mouseX - 50) + 'px'; // 푸바오 이미지의 중심이 마우스를 따라가게 하기 위해 50px을 빼줍니다.
-            fuBao.style.top = (mouseY - 50) + 'px';
-        });
+                // 웹캠 영상이 준비되면 ASCII로 변환하여 출력
+                video.addEventListener('play', () => {
+                    setInterval(() => renderAscii(video), 100);
+                });
+            } catch (err) {
+                console.error('웹캠을 불러오는 데 실패했습니다:', err);
+            }
+        }
+
+        // 비디오 프레임을 ASCII 문자로 변환하는 함수
+        function renderAscii(video) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = video.width;
+            canvas.height = video.height;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // 캔버스 데이터를 가져와서 그레이스케일로 변환
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const pixels = imageData.data;
+            let asciiStr = '';
+
+            for (let y = 0; y < canvas.height; y++) {
+                for (let x = 0; x < canvas.width; x++) {
+                    const index = (y * canvas.width + x) * 4;
+                    const r = pixels[index];     // 빨강
+                    const g = pixels[index + 1]; // 초록
+                    const b = pixels[index + 2]; // 파랑
+                    const brightness = 0.3 * r + 0.59 * g + 0.11 * b; // 그레이스케일 밝기 계산
+                    const charIndex = Math.floor((brightness / 255) * (asciiChars.length - 1));
+                    asciiStr += asciiChars[charIndex];
+                }
+                asciiStr += '\n'; // 한 줄 끝내기
+            }
+
+            // ASCII 문자열을 화면에 표시
+            asciiVideoElement.textContent = asciiStr;
+        }
+
+        // 웹캠을 설정하고 시작
+        setupWebcam();
     </script>
 </body>
 </html>
